@@ -1,0 +1,218 @@
+
+.constant
+
+chA     0x41
+one     1
+bignum  0x12345678
+
+OBJREF  0x2
+
+.end-constant
+
+
+//----
+.main
+
+.var
+
+somevar
+othervar
+
+.end-var
+
+
+	//POWER TEST
+	LDC_W OBJREF
+	BIPUSH 0x4
+	BIPUSH 0x3
+	INVOKEVIRTUAL power
+	//OUT
+	HALT
+
+	// IMUL TEST
+
+	LDC_W OBJREF
+	BIPUSH 0x3
+	BIPUSH 0x5
+	INVOKEVIRTUAL imul
+	HALT
+
+
+
+
+.end-main
+
+
+//----
+
+.method imul(int1, int2)
+.var
+	m			// return value
+	abs1			// abs value of int1
+	abs2			// abs value of int2
+	c			// hold min
+	o			// hold max
+	neg			// neg flag 
+.end-var
+	BIPUSH 0x0		// init 6 var m abs1 abs2 and neg flag c o
+	ISTORE m
+	BIPUSH 0x0
+	ISTORE abs1
+	BIPUSH 0x0
+	ISTORE abs2
+	BIPUSH 0x0
+	ISTORE neg
+	BIPUSH 0x0
+	ISTORE c
+	BIPUSH 0x0
+	ISTORE o
+	
+	ILOAD int1
+	DUP			// DUP FOR CMP
+	ISTORE abs1
+	INEG			// -INT1
+	IFLT saved1		// if -int1<0, int1 > 0 good to go
+
+	ILOAD int1
+	INEG			// ELSE INT1<0, NEG IT AND SAVE TO ABS1
+	ISTORE abs1
+
+	ILOAD neg		// NEG FLAG +1 TO INDICATE HAVE ONE MORE NEG NUM
+	BIPUSH 0x1
+	IADD
+	ISTORE neg	
+saved1:
+	
+
+	ILOAD int2
+	DUP			// DUP FOR CMP
+	ISTORE abs2
+	INEG			// -INT1
+	IFLT saved2		// if -int1<0, int1 > 0 good to go
+
+	ILOAD int2
+	INEG			// ELSE INT1<0, NEG IT AND SAVE TO ABS1
+	ISTORE abs2
+
+	ILOAD neg		// NEG FLAG +1 TO INDICATE HAVE ONT MORE NEG NUM
+	BIPUSH 0x1
+	IADD
+	ISTORE neg	
+saved2:
+
+	ILOAD abs1		// CMP ABS1 AND ABS2 AND SET C=MIN O=MAX
+	ILOAD abs2
+	ISUB
+	IFLT small		// if lt, abs1<abs2
+	ILOAD abs1		// ELSE, ABS1>ABS2
+	ISTORE o
+	ILOAD abs2
+	ISTORE c
+small:
+	ILOAD abs1		// abs1<abs2
+	ISTORE c
+	ILOAD abs2
+	ISTORE o		// c o set done
+
+	BIPUSH 0x0		// for counter i	// WHEN I>=C OUTLOOP
+loopAdd:
+	DUP
+	BIPUSH 0x1
+	IADD			// DUP AND I+1 FOR CMP 
+	ILOAD c
+	SWAP
+	ISUB
+	IFLT endLoop		// IF I+1>C END LOOP
+	ILOAD m
+	ILOAD o
+	IADD			// ELSE CONTINUE LOOP M+=O
+	ISTORE m
+	BIPUSH 0x1		// I++
+	IADD
+	GOTO loopAdd
+endLoop:
+	POP			// pop i on the top of stack
+	
+	ILOAD m
+	INEG
+	ISTORE m		// NEG M FIRST
+	ILOAD neg
+	BIPUSH 0x1
+	ISUB
+	IFEQ goodToRE
+	ILOAD m
+	INEG
+	ISTORE m		// NEG M back if is not neg
+goodToRE:
+	ILOAD m
+	DUP
+	OUT
+	IRETURN			// LOAD M AND RETURN
+.end-method
+
+///-------------------- POWER METHOD ----------------------------------
+.method power(in1, in2):
+.var
+	count			// count down until zero for in2
+	tmp				// save value of in1
+.end-var
+
+
+		// power(0,in2)
+        ILOAD   in1
+        IFEQ    ret0
+        // power(1, in2)
+        ILOAD   in1
+        BIPUSH  1
+        ISUB                    // n-1
+        IFEQ    ret1
+        // power (in1, 0) =1
+        ILOAD in2
+        IFEQ 	ret1
+        // power (in1,1)=in1
+        ILOAD in2
+        BIPUSH 1
+        ISUB
+        IFEQ 	retself
+        
+        // power(in1, in2)	in1>=2 and in2>=2
+        
+		BIPUSH 2
+		ISTORE count	// count=0
+		ILOAD in1
+		ISTORE tmp		// tmp=in1
+loopMul:
+		
+		LDC_W OBJREF
+		ILOAD in1
+		ILOAD tmp
+		INVOKEVIRTUAL imul
+		ISTORE tmp
+		ILOAD tmp	// print out to check
+		OUT
+		ILOAD count
+		ILOAD in2
+		ISUB
+		IFEQ retn	// if count =in2
+		ILOAD count
+		BIPUSH 1
+		IADD		// TOS= count+1
+		ISTORE count
+		goto loopMul
+ 
+retn: 
+		ILOAD tmp
+		DUP
+		OUT
+        IRETURN
+
+ret0:
+		BIPUSH	0
+		IRETURN
+ret1:
+        BIPUSH  1
+        IRETURN
+retself:
+		ILOAD in1
+		IRETURN
+.end-method
